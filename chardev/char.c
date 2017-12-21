@@ -821,6 +821,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "input-path",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "cmd",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "host",
             .type = QEMU_OPT_STRING,
         },{
