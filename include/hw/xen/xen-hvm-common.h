@@ -30,8 +30,6 @@ extern DeviceListener xen_device_listener;
     do { } while (0)
 #endif
 
-#define XEN_GRANT_ADDR_OFF (1ULL << 63)
-
 static inline uint32_t xen_vcpu_eport(shared_iopage_t *shared_page, int i)
 {
     return shared_page->vcpu_ioreq[i].vp_eport;

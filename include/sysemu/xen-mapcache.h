@@ -28,6 +28,8 @@ void xen_invalidate_map_cache(void);
 uint8_t *xen_replace_cache_entry(hwaddr old_phys_addr,
                                  hwaddr new_phys_addr,
                                  hwaddr size);
+MemoryRegion *xen_init_grant_ram(void);
+
 #else
 
 static inline void xen_map_cache_init(phys_offset_to_gaddr_t f,
