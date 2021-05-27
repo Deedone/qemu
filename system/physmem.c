@@ -3206,6 +3206,7 @@ void *address_space_map(AddressSpace *as,
     hwaddr len = *plen;
     hwaddr l, xlat;
     MemoryRegion *mr;
+    void *ptr = NULL;
     FlatView *fv;
 
     if (len == 0) {
@@ -3239,12 +3240,20 @@ void *address_space_map(AddressSpace *as,
         return as->bounce.buffer;
     }
 
-
     memory_region_ref(mr);
+
+    if (mr->ops && mr->ops->map) {
+        ptr = mr->ops->map(&mr, addr, plen, is_write, attrs);
+    }
+
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
                                         l, is_write, attrs);
     fuzz_dma_read_cb(addr, *plen, mr);
-    return qemu_ram_ptr_length(mr->ram_block, xlat, plen, true, is_write);
+    if (ptr == NULL) {
+        ptr = qemu_ram_ptr_length(mr->ram_block, xlat, plen, true, is_write);
+    }
+
+    return ptr;
 }
 
 /* Unmaps a memory region previously mapped by address_space_map().
@@ -3260,11 +3269,16 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
         mr = memory_region_from_host(buffer, &addr1);
         assert(mr != NULL);
-        if (is_write) {
-            invalidate_and_set_dirty(mr, addr1, access_len);
-        }
-        if (xen_enabled()) {
-            xen_invalidate_map_cache_entry(buffer);
+
+        if (mr->ops && mr->ops->unmap) {
+            mr->ops->unmap(mr, buffer, addr1, len, is_write, access_len);
+        } else {
+            if (is_write) {
+                invalidate_and_set_dirty(mr, addr1, access_len);
+            }
+            if (xen_enabled()) {
+                xen_invalidate_map_cache_entry(buffer);
+            }
         }
         memory_region_unref(mr);
         return;
@@ -3337,11 +3351,17 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
          * doing this if we found actual RAM, which behaves the same
          * regardless of attributes; so UNSPECIFIED is fine.
          */
+        if (mr->ops && mr->ops->map) {
+            cache->ptr = mr->ops->map(&mr, addr, &l, is_write,
+                                      MEMTXATTRS_UNSPECIFIED);
+        }
+
         l = flatview_extend_translation(cache->fv, addr, len, mr,
                                         cache->xlat, l, is_write,
                                         MEMTXATTRS_UNSPECIFIED);
-        cache->ptr = qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true,
-                                         is_write);
+        if (!cache->ptr) {
+            cache->ptr = qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true, is_write);
+        }
     } else {
         cache->ptr = NULL;
     }
@@ -3363,14 +3383,21 @@ void address_space_cache_invalidate(MemoryRegionCache *cache,
 
 void address_space_cache_destroy(MemoryRegionCache *cache)
 {
-    if (!cache->mrs.mr) {
+    MemoryRegion *mr = cache->mrs.mr;
+
+    if (!mr) {
         return;
     }
 
-    if (xen_enabled()) {
+    if (mr->ops && mr->ops->unmap) {
+            mr->ops->unmap(mr, cache->ptr, cache->xlat, cache->len,
+                           cache->is_write, cache->len);
+    } else if (xen_enabled()) {
         xen_invalidate_map_cache_entry(cache->ptr);
     }
-    memory_region_unref(cache->mrs.mr);
+
+
+    memory_region_unref(mr);
     flatview_unref(cache->fv);
     cache->mrs.mr = NULL;
     cache->fv = NULL;
