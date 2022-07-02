@@ -25,6 +25,7 @@
 #endif
 
 #include "exec/cpu-common.h"
+#include <xenstore.h>
 
 /* xen-machine.c */
 enum xen_mode {
@@ -47,5 +48,6 @@ int xen_is_pirq_msi(uint32_t msi_data);
 qemu_irq *xen_interrupt_controller_init(void);
 
 void xen_register_framebuffer(struct MemoryRegion *mr);
+void xenstore_record_dm_state(struct xs_handle *xs, const char *state);
 
 #endif /* QEMU_HW_XEN_H */
