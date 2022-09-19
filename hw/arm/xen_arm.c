@@ -154,6 +154,9 @@ static void xen_init_ram(MachineState *machine)
         memory_region_add_subregion(sysmem, GUEST_RAM1_BASE, &ram_hi);
     }
 
+    /* Add grant mappings as a pseudo RAM region. */
+    xen_init_grant_ram();
+
     /* Setup support for grants.  */
     memory_region_init_ram(&xen_grants, NULL, "xen.grants", block_len,
                            &error_fatal);
