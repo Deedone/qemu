@@ -974,14 +974,19 @@ if get_option('xen').enabled() or (get_option('xen').auto() and have_system)
     error('could not compile and link Xen test program')
   endif
 endif
-have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
-  .require(xen.found(),
-           error_message: 'Xen PCI passthrough requested but Xen not enabled') \
-  .require(host_os == 'linux',
-           error_message: 'Xen PCI passthrough not available on this platform') \
-  .require(cpu == 'x86'  or cpu == 'x86_64',
-           error_message: 'Xen PCI passthrough not available on this platform') \
-  .allowed()
+if cpu in ['x86', 'x86_64'] 
+  have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
+    .require(xen.found(),
+            error_message: 'Xen PCI passthrough requested but Xen not enabled') \
+    .require(host_os == 'linux',
+            error_message: 'Xen PCI passthrough not available on this platform') \
+    .require(cpu == 'x86'  or cpu == 'x86_64',
+            error_message: 'Xen PCI passthrough not available on this platform') \
+    .allowed()
+else
+  have_xen_pci_passthrough = false
+endif
+
 
 ################
 # Dependencies #
