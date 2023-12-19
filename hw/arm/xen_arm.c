@@ -239,6 +239,7 @@ static void xen_enable_tpm(void)
 static void xen_arm_init(MachineState *machine)
 {
     XenArmState *xam = XEN_ARM(machine);
+    DeviceState *dev;
     int rc;
 
     if (!xen_enabled()) {
@@ -267,6 +268,11 @@ static void xen_arm_init(MachineState *machine)
 
     xen_enable_tpm();
 
+    dev = qdev_new("arm-its-xen");
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, GUEST_GICV3_ITS_BASE);
+    msi_nonbroken = true;
     return;
 }
 
