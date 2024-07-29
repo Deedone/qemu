@@ -1804,7 +1804,8 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
-static void ram_block_add(RAMBlock *new_block, Error **errp)
+void ram_block_add(RAMBlock *new_block, Error **errp);
+void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     const bool noreserve = qemu_ram_is_noreserve(new_block);
     const bool shared = qemu_ram_is_shared(new_block);
@@ -2211,6 +2212,7 @@ static void *qemu_ram_ptr_length(RAMBlock *block, ram_addr_t addr,
 {
     hwaddr len = 0;
 
+    printf("%s %d lock %d\n", __func__, __LINE__, lock);
     if (size && *size == 0) {
         return NULL;
     }
@@ -2224,17 +2226,20 @@ static void *qemu_ram_ptr_length(RAMBlock *block, ram_addr_t addr,
         len = *size;
     }
 
+    printf("%s %d\n", __func__, __LINE__);
     if (xen_enabled() && block->host == NULL) {
         /* We need to check if the requested address is in the RAM
          * because we don't want to map the entire memory in QEMU.
          * In that case just map the requested area.
          */
         if (xen_mr_is_memory(block->mr)) {
+    printf("%s %d\n", __func__, __LINE__);
             return xen_map_cache(block->mr, block->offset + addr,
                                  len, block->offset,
                                  lock, lock, is_write);
         }
 
+    printf("%s %d\n", __func__, __LINE__);
         block->host = xen_map_cache(block->mr, block->offset,
                                     block->max_length,
                                     block->offset,
@@ -2254,6 +2259,7 @@ static void *qemu_ram_ptr_length(RAMBlock *block, ram_addr_t addr,
  */
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr)
 {
+    printf("%s %d\n", __func__, __LINE__);
     return qemu_ram_ptr_length(ram_block, addr, NULL, false, true);
 }
 
@@ -2763,6 +2769,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
         return result;
     } else {
         /* RAM case */
+        printf("%s %d\n", __func__, __LINE__);
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, true);
 
@@ -2856,6 +2863,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         return result;
     } else {
         /* RAM case */
+        printf("%s %d\n", __func__, __LINE__);
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, false);
 
@@ -3005,6 +3013,7 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
             l = memory_access_size(mr, l, addr1);
         } else {
             /* ROM/RAM case */
+            printf("%s %d\n", __func__, __LINE__);
             ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
             switch (type) {
             case WRITE_DATA:
@@ -3229,6 +3238,7 @@ void *address_space_map(AddressSpace *as,
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
                                         l, is_write, attrs);
     fuzz_dma_read_cb(addr, *plen, mr);
+    printf("%s %d\n", __func__, __LINE__);
     return qemu_ram_ptr_length(mr->ram_block, xlat, plen, true, is_write);
 }
 
@@ -3325,6 +3335,7 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
         l = flatview_extend_translation(cache->fv, addr, len, mr,
                                         cache->xlat, l, is_write,
                                         MEMTXATTRS_UNSPECIFIED);
+        printf("%s %d\n", __func__, __LINE__);
         cache->ptr = qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true,
                                          is_write);
     } else {

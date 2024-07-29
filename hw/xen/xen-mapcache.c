@@ -137,6 +137,7 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
     unsigned long max_mcache_size;
     unsigned int bucket_shift;
 
+    printf("%s %d\n", __func__, __LINE__);
     xen_region_gnttabdev = xengnttab_open(NULL, 0);
     if (xen_region_gnttabdev == NULL) {
         error_report("mapcache: Failed to open gnttab device");
@@ -339,6 +340,7 @@ tryagain:
     address_index  = phys_addr >> mc->bucket_shift;
     address_offset = phys_addr & (mc->bucket_size - 1);
 
+    printf("%s %d\n", __func__, __LINE__);
     trace_xen_map_cache(phys_addr);
 
     /* test_bit_size is always a multiple of XC_PAGE_SIZE */
@@ -458,6 +460,8 @@ uint8_t *xen_map_cache(MemoryRegion *mr,
     bool grant = xen_mr_is_grants(mr);
     MapCache *mc = grant ? mapcache_grants : mapcache;
     uint8_t *p;
+
+    printf("xen map cache %lx %lx\n", phys_addr, size);
 
     if (grant && !lock) {
         /*

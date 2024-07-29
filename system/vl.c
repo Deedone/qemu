@@ -1670,11 +1670,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
     g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
     MachineClass *machine_class = NULL;
 
-    if (machine_type) {
+    if (machine_type && strlen(machine_type) > 4) {
         machine_class = find_machine(machine_type, machines);
         qdict_del(qdict, "type");
         if (!machine_class) {
-            error_setg(errp, "unsupported machine type: \"%s\"", optarg);
+            error_setg(errp, "unsupported machine type3: \"%s\"", machine_type);
         }
     } else {
         machine_class = find_default_machine(machines);

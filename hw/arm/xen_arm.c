@@ -37,10 +37,11 @@
 #include "hw/xen/arch_hvm.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
+#include "exec/ramblock.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/virtio/virtio-pci.h"
 
-#define TYPE_XEN_ARM  MACHINE_TYPE_NAME("xenpvh")
+#define TYPE_XEN_ARM  MACHINE_TYPE_NAME("xenpv")
 OBJECT_DECLARE_SIMPLE_TYPE(XenArmState, XEN_ARM)
 
 static const MemoryListener xen_memory_listener = {
@@ -126,12 +127,14 @@ static void xen_create_virtio_mmio_devices(XenArmState *xam)
                                              base);
     }
 }
-
+void ram_block_add(RAMBlock *new_block, Error **errp);
 static void xen_init_ram(MachineState *machine)
 {
     MemoryRegion *sysmem = get_system_memory();
+    RAMBlock *block;
     ram_addr_t block_len, ram_size[GUEST_RAM_BANKS];
 
+    printf("%s %d\n", __func__, __LINE__);
     trace_xen_init_ram(machine->ram_size);
     if (machine->ram_size <= GUEST_RAM0_SIZE) {
         ram_size[0] = machine->ram_size;
@@ -143,22 +146,46 @@ static void xen_init_ram(MachineState *machine)
         block_len = GUEST_RAM1_BASE + ram_size[1];
     }
 
+    printf("%s %d\n", __func__, __LINE__);
     memory_region_init_ram(&xen_memory, NULL, "xen.ram", block_len,
                            &error_fatal);
 
+    printf("%s %d\n", __func__, __LINE__);
     memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo", &xen_memory,
                              GUEST_RAM0_BASE, ram_size[0]);
+    printf("%s %d\n", __func__, __LINE__);
+    printf("%s %d\n", __func__, __LINE__);
     memory_region_add_subregion(sysmem, GUEST_RAM0_BASE, &ram_lo);
+    printf("%s %d\n", __func__, __LINE__);
+
     if (ram_size[1] > 0) {
+    printf("%s %d\n", __func__, __LINE__);
         memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi", &xen_memory,
                                  GUEST_RAM1_BASE, ram_size[1]);
+    printf("%s %d\n", __func__, __LINE__);
         memory_region_add_subregion(sysmem, GUEST_RAM1_BASE, &ram_hi);
+    printf("%s %d\n", __func__, __LINE__);
     }
 
     /* Setup support for grants.  */
-    memory_region_init_ram(&xen_grants, NULL, "xen.grants", block_len,
-                           &error_fatal);
+    memory_region_init(&xen_grants, NULL, "xen.grants", block_len);
+                           
+    printf("%s %d\n", __func__, __LINE__);
+    block = g_malloc0(sizeof(RAMBlock));
+    block->mr = &xen_grants;
+    block->used_length = 65536 * XC_PAGE_SIZE;
+    block->max_length = 65536 * XC_PAGE_SIZE;
+    block->fd = -1;
+    block->page_size = XC_PAGE_SIZE;
+    block->host = (void *)XEN_GRANT_ADDR_OFF;
+    block->offset = XEN_GRANT_ADDR_OFF;
+    block->flags = RAM_PREALLOC;
+    xen_grants.ram_block = block;
+    xen_grants.ram = true;
+    xen_grants.terminates = true;
+    ram_block_add(block, &error_fatal);
     memory_region_add_subregion(sysmem, XEN_GRANT_ADDR_OFF, &xen_grants);
+    printf("%s %d\n", __func__, __LINE__);
 }
 
 static void xen_create_pcie(XenArmState *xam)
@@ -207,7 +234,7 @@ static void xen_create_pcie(XenArmState *xam)
         gpex_set_irq_num(GPEX_HOST(dev), i, xam->irqmap[VIRT_PCIE] + i);
     }
 
-    DPRINTF("Created PCIe host bridge\n");
+    printf("Created PCIe host bridge\n");
 }
 
 static int xen_get_pcie_params(XenArmState *xam)
@@ -391,6 +418,7 @@ static void xen_arm_init(MachineState *machine)
 {
     XenArmState *xam = XEN_ARM(machine);
 
+    printf("AAAARGH\n");
     xam->state =  g_new0(XenIOState, 1);
     xam->memmap = xen_memmap;
     xam->irqmap = xen_irqmap;
@@ -402,9 +430,9 @@ static void xen_arm_init(MachineState *machine)
         return;
     }
 
-    xen_init_ram(machine);
-
     xen_register_ioreq(xam->state, machine->smp.cpus, &xen_memory_listener);
+
+    xen_init_ram(machine);
 
     xen_create_virtio_mmio_devices(xam);
     if (!xen_get_pcie_params(xam))
@@ -479,6 +507,7 @@ static const TypeInfo xen_arm_machine_type = {
 
 static void xen_arm_machine_register_types(void)
 {
+    printf("%s %d\n", __func__, __LINE__);
     type_register_static(&xen_arm_machine_type);
 }
 

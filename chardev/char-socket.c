@@ -1521,7 +1521,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     bool abstract = qemu_opt_get_bool(opts, "abstract", false);
 #endif
     SocketAddressLegacy *addr;
-    ChardevSocket *sock;
+    ChardevSocket *sock = NULL;
 
 #ifndef _WIN32
     if (cmd) {

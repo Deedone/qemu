@@ -449,6 +449,7 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
     trace_handle_ioreq(req, req->type, req->dir, req->df, req->data_is_ptr,
                        req->addr, req->data, req->count, req->size);
 
+    printf("handle ioreq\n");
     if (!req->data_is_ptr && (req->dir == IOREQ_WRITE) &&
             (req->size < sizeof (target_ulong))) {
         req->data &= ((target_ulong) 1 << (8 * req->size)) - 1;
@@ -460,23 +461,30 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
 
     switch (req->type) {
         case IOREQ_TYPE_PIO:
+            printf("virtio\n");
             cpu_ioreq_pio(req);
             break;
         case IOREQ_TYPE_COPY:
+            printf("copy\n");
             cpu_ioreq_move(req);
             break;
         case IOREQ_TYPE_TIMEOFFSET:
+            printf("timeoffset\n");
             break;
         case IOREQ_TYPE_INVALIDATE:
+            printf("invalidate\n");
             xen_invalidate_map_cache();
             break;
         case IOREQ_TYPE_PCI_CONFIG:
+            printf("pci config\n");
             cpu_ioreq_config(state, req);
             break;
         default:
+            hw_error("Unknown ioreq type %u", req->type);
             arch_handle_ioreq(state, req);
     }
     if (req->dir == IOREQ_READ) {
+        printf("read\n");
         trace_handle_ioreq_read(req, req->type, req->df, req->data_is_ptr,
                                 req->addr, req->data, req->count, req->size);
     }
@@ -489,6 +497,7 @@ static unsigned int handle_buffered_iopage(XenIOState *state)
     unsigned int handled = 0;
     ioreq_t req;
     int qw;
+    printf("handle buffered iopage\n");
 
     if (!buf_page) {
         return 0;
@@ -572,6 +581,7 @@ static void cpu_handle_ioreq(void *opaque)
     XenIOState *state = opaque;
     ioreq_t *req = cpu_get_ioreq(state);
 
+    printf("cpu handle ioreq\n");
     handle_buffered_iopage(state);
     if (req) {
         ioreq_t copy = *req;
@@ -621,6 +631,7 @@ static void xen_main_loop_prepare(XenIOState *state)
 {
     int evtchn_fd = -1;
 
+    printf("xen main loop prepare\n");
     if (state->xce_handle != NULL) {
         evtchn_fd = qemu_xen_evtchn_fd(state->xce_handle);
     }
@@ -646,7 +657,9 @@ void xen_hvm_change_state_handler(void *opaque, bool running,
 {
     XenIOState *state = opaque;
 
+    printf("change state handler\n");
     if (running) {
+        printf("running\n");
         xen_main_loop_prepare(state);
     }
 
@@ -802,11 +815,13 @@ static void xen_do_ioreq_register(XenIOState *state,
 
     state->exit.notify = xen_exit_notifier;
     qemu_add_exit_notifier(&state->exit);
+    printf("%s %d\n", __func__, __LINE__);
 
     /*
      * Register wake-up support in QMP query-current-machine API
      */
     qemu_register_wakeup_support();
+    printf("%s %d\n", __func__, __LINE__);
 
     rc = xen_map_ioreq_server(state);
     if (rc < 0) {
@@ -815,6 +830,7 @@ static void xen_do_ioreq_register(XenIOState *state,
 
     /* Note: cpus is empty at this point in init */
     state->cpu_by_vcpu_id = g_new0(CPUState *, max_cpus);
+    printf("%s %d\n", __func__, __LINE__);
 
     rc = xen_set_ioreq_server_state(xen_domid, state->ioservid, true);
     if (rc < 0) {
@@ -824,6 +840,7 @@ static void xen_do_ioreq_register(XenIOState *state,
     }
 
     state->ioreq_local_port = g_new0(evtchn_port_t, max_cpus);
+    printf("%s %d\n", __func__, __LINE__);
 
     /* FIXME: how about if we overflow the page here? */
     for (i = 0; i < max_cpus; i++) {
@@ -837,6 +854,7 @@ static void xen_do_ioreq_register(XenIOState *state,
         state->ioreq_local_port[i] = rc;
     }
 
+    printf("%s %d\n", __func__, __LINE__);
     rc = qemu_xen_evtchn_bind_interdomain(state->xce_handle, xen_domid,
                                           state->bufioreq_remote_port);
     if (rc == -1) {
@@ -845,13 +863,17 @@ static void xen_do_ioreq_register(XenIOState *state,
     }
     state->bufioreq_local_port = rc;
 
+    printf("%s %d\n", __func__, __LINE__);
     /* Init RAM management */
 #ifdef XEN_COMPAT_PHYSMAP
+    printf("%s %d\n", __func__, __LINE__);
     xen_map_cache_init(xen_phys_offset_to_gaddr, state);
 #else
+    printf("%s %d\n", __func__, __LINE__);
     xen_map_cache_init(NULL, state);
 #endif
 
+    printf("%s %d\n", __func__, __LINE__);
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
     state->memory_listener = *xen_memory_listener;
@@ -877,21 +899,26 @@ void xen_register_ioreq(XenIOState *state, unsigned int max_cpus,
     int rc;
 
     setup_xen_backend_ops();
+    printf("%s %d\n", __func__, __LINE__);
 
+    printf("%s %d\n", __func__, __LINE__);
     state->xce_handle = qemu_xen_evtchn_open();
     if (state->xce_handle == NULL) {
         error_report("xen: event channel open failed with error %d", errno);
         goto err;
     }
 
+    printf("%s %d\n", __func__, __LINE__);
     state->xenstore = xs_daemon_open();
     if (state->xenstore == NULL) {
         error_report("xen: xenstore open failed with error %d", errno);
         goto err;
     }
 
+    printf("%s %d\n", __func__, __LINE__);
     rc = xen_create_ioreq_server(xen_domid, &state->ioservid);
     if (!rc) {
+        printf("%s %d\n", __func__, __LINE__);
         xen_do_ioreq_register(state, max_cpus, xen_memory_listener);
     } else {
         warn_report("xen: failed to create ioreq server");
